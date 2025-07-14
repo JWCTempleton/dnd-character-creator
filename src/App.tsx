@@ -1,9 +1,11 @@
 // src/App.tsx
 import { useState, useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
 import apiClient from "./services/apiClient";
 import Header from "./components/Header";
 import AuthModal from "./components/AuthModal";
-import CharacterCreator from "./components/CharacterCreator"; // <-- IMPORT
+import DashboardPage from "./pages/DashboardPage"; // <-- IMPORT PAGE
+import CharacterSheetPage from "./pages/CharacterSheetPage"; // <-- IMPORT PAGE
 
 interface User {
   _id: string;
@@ -15,20 +17,14 @@ function App() {
   const [userInfo, setUserInfo] = useState<User | null>(null);
   const [authMode, setAuthMode] = useState<"login" | "register" | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // To prevent UI flicker
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const { data } = await apiClient.get<User>("/users/profile");
-        setUserInfo(data);
-      } catch (error) {
-        setUserInfo(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchUserProfile();
+    apiClient
+      .get<User>("/users/profile")
+      .then((res) => setUserInfo(res.data))
+      .catch(() => setUserInfo(null))
+      .finally(() => setIsLoading(false));
   }, []);
 
   const handleAuthSubmit = async (formData: any) => {
@@ -44,49 +40,27 @@ function App() {
   };
 
   const handleLogout = async () => {
-    try {
-      await apiClient.post("/users/logout");
-      setUserInfo(null);
-    } catch (error) {
-      console.error("Logout failed", error);
-      alert("Could not log out.");
-    }
+    await apiClient.post("/users/logout");
+    setUserInfo(null);
   };
 
-  const renderContent = () => {
-    if (isLoading) {
-      return <div className="text-center text-white text-2xl">Loading...</div>;
-    }
-
-    if (userInfo) {
-      return <CharacterCreator />; // <-- RENDER THE CREATOR
-    }
-
-    return (
-      <div className="text-center mt-20">
-        <h2 className="text-4xl font-bold text-amber-300">Welcome!</h2>
-        <p className="text-xl mt-4 text-slate-300">
-          Please login or register to begin.
-        </p>
-      </div>
-    );
-  };
+  const renderLandingPage = () => (
+    <div className="text-center mt-20">
+      <h2 className="text-4xl font-bold text-amber-300">Welcome!</h2>
+      <p className="text-xl mt-4 text-slate-300">
+        Please login or register to begin.
+      </p>
+    </div>
+  );
 
   return (
     <div className="bg-slate-900 min-h-screen p-4 sm:p-8 text-white">
       <Header
         userInfo={userInfo}
-        onLoginClick={() => {
-          setAuthMode("login");
-          setAuthError(null);
-        }}
-        onRegisterClick={() => {
-          setAuthMode("register");
-          setAuthError(null);
-        }}
         onLogoutClick={handleLogout}
+        onLoginClick={() => setAuthMode("login")}
+        onRegisterClick={() => setAuthMode("register")}
       />
-
       {authMode && (
         <AuthModal
           mode={authMode}
@@ -95,8 +69,26 @@ function App() {
           error={authError}
         />
       )}
-
-      <main>{renderContent()}</main>
+      <main>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              isLoading ? (
+                <div>Loading...</div>
+              ) : userInfo ? (
+                <DashboardPage />
+              ) : (
+                renderLandingPage()
+              )
+            }
+          />
+          <Route
+            path="/character/:id"
+            element={userInfo ? <CharacterSheetPage /> : renderLandingPage()}
+          />
+        </Routes>
+      </main>
     </div>
   );
 }

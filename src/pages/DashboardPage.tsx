@@ -1,5 +1,6 @@
 // frontend/src/components/CharacterCreator.tsx
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import apiClient from "../services/apiClient";
 import {
   fetchRaces,
@@ -160,12 +161,14 @@ const CharacterCreator = () => {
         <ul className="space-y-2">
           {savedCharacters.length > 0 ? (
             savedCharacters.map((char) => (
-              <li key={char._id} className="bg-slate-700 p-3 rounded">
-                <p className="font-bold text-lg text-sky-400">{char.name}</p>
-                <p className="capitalize text-sm text-slate-300">
-                  {char.race} {char.characterClass}
-                </p>
-              </li>
+              <Link to={`/character/${char._id}`} key={char._id}>
+                <li className="bg-slate-700 p-3 rounded hover:bg-slate-600 transition-colors cursor-pointer">
+                  <p className="font-bold text-lg text-sky-400">{char.name}</p>
+                  <p className="capitalize text-sm text-slate-300">
+                    {char.race} {char.characterClass}
+                  </p>
+                </li>
+              </Link>
             ))
           ) : (
             <p className="text-slate-400">No characters saved yet.</p>
