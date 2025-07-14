@@ -1,4 +1,4 @@
-// src/components/CharacterCreator.tsx
+// frontend/src/components/CharacterCreator.tsx
 import { useState, useEffect } from "react";
 import apiClient from "../services/apiClient";
 import {
@@ -9,7 +9,13 @@ import {
   type RaceDetails,
   type ClassDetails,
 } from "../services/dndApi";
-import { CLASS_PRIMARY_STATS, ABILITY_SCORE_MAP } from "../lib/helpers";
+import {
+  CLASS_PRIMARY_STATS,
+  ABILITY_SCORE_MAP,
+  ABILITIES,
+  type Ability,
+  rollForStat,
+} from "../lib/helpers";
 
 interface SavedCharacter {
   _id: string;
@@ -18,55 +24,60 @@ interface SavedCharacter {
   characterClass: string;
 }
 
+// The default state for our stats
+const initialStats: Record<Ability, number> = {
+  strength: 10,
+  dexterity: 10,
+  constitution: 10,
+  intelligence: 10,
+  wisdom: 10,
+  charisma: 10,
+};
+
 const CharacterCreator = () => {
-  // D&D API Data State
+  // --- State Management ---
   const [races, setRaces] = useState<ApiListItem[]>([]);
   const [classes, setClasses] = useState<ApiListItem[]>([]);
-
-  // Selection State
   const [selectedRace, setSelectedRace] = useState<RaceDetails | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassDetails | null>(null);
   const [recommendedClasses, setRecommendedClasses] = useState<Set<string>>(
     new Set()
   );
-
-  // NEW: User's Character Data State
   const [characterName, setCharacterName] = useState("");
   const [savedCharacters, setSavedCharacters] = useState<SavedCharacter[]>([]);
+  const [stats, setStats] = useState<Record<Ability, number>>(initialStats);
 
+  // --- Data Loading Effect ---
   useEffect(() => {
     const loadPublicData = async () => {
-      // Fetch public D&D data that doesn't require login.
-      const [racesData, classesData] = await Promise.all([
-        fetchRaces(),
-        fetchClasses(),
-      ]);
-      setRaces(racesData);
-      setClasses(classesData);
+      try {
+        const [racesData, classesData] = await Promise.all([
+          fetchRaces(),
+          fetchClasses(),
+        ]);
+        setRaces(racesData);
+        setClasses(classesData);
+      } catch (error) {
+        console.error("Failed to load public D&D data", error);
+      }
     };
 
     const loadUserCharacters = async () => {
-      // Fetch private user data that requires a valid login cookie.
       try {
         const { data } = await apiClient.get<SavedCharacter[]>("/characters");
         setSavedCharacters(data);
       } catch (error) {
-        console.error(
-          "Could not fetch user characters, session might be invalid.",
-          error
-        );
-        // If this fails, we don't want to crash the whole component.
-        // The user might just need to log in again.
-        // We can optionally clear the saved characters list.
+        console.error("Could not fetch user characters.", error);
         setSavedCharacters([]);
       }
     };
+
     loadPublicData();
     loadUserCharacters();
   }, []);
 
+  // --- Recommendation Engine Effect ---
   useEffect(() => {
-    // Logic to update recommended classes based on race selection (from previous increment)
     if (!selectedRace) {
       setRecommendedClasses(new Set());
       return;
@@ -86,6 +97,7 @@ const CharacterCreator = () => {
     setRecommendedClasses(newRecommended);
   }, [selectedRace, classes]);
 
+  // --- Event Handlers ---
   const handleSelectRace = async (raceItem: ApiListItem) => {
     const details = await fetchApiDetails<RaceDetails>(raceItem.url);
     setSelectedRace(details);
@@ -94,6 +106,19 @@ const CharacterCreator = () => {
   const handleSelectClass = async (classItem: ApiListItem) => {
     const details = await fetchApiDetails<ClassDetails>(classItem.url);
     setSelectedClass(details);
+  };
+
+  const handleStandardArray = () => {
+    alert("Standard Array is not yet implemented. Please use Roll for Stats.");
+    // A great place for a future feature!
+  };
+
+  const handleRollStats = () => {
+    const newStats = { ...initialStats };
+    ABILITIES.forEach((ability) => {
+      newStats[ability] = rollForStat();
+    });
+    setStats(newStats);
   };
 
   const handleSaveCharacter = async () => {
@@ -106,14 +131,19 @@ const CharacterCreator = () => {
         name: characterName,
         race: selectedRace.name.toLowerCase(),
         characterClass: selectedClass.name.toLowerCase(),
-        // stats will be added later
+        stats: stats, // Add stats to the save payload
       };
-      const { data: newCharacter } = await apiClient.post(
+      const { data: newCharacter } = await apiClient.post<SavedCharacter>(
         "/characters",
         payload
       );
       setSavedCharacters([...savedCharacters, newCharacter]);
-      setCharacterName(""); // Clear name field
+
+      // Reset fields for the next character
+      setCharacterName("");
+      setStats(initialStats);
+      setSelectedRace(null);
+      setSelectedClass(null);
     } catch (error) {
       console.error("Failed to save character", error);
       alert("Failed to save character.");
@@ -128,14 +158,18 @@ const CharacterCreator = () => {
           My Characters
         </h2>
         <ul className="space-y-2">
-          {savedCharacters.map((char) => (
-            <li key={char._id} className="bg-slate-700 p-3 rounded">
-              <p className="font-bold text-lg text-sky-400">{char.name}</p>
-              <p className="capitalize text-sm text-slate-300">
-                {char.race} {char.characterClass}
-              </p>
-            </li>
-          ))}
+          {savedCharacters.length > 0 ? (
+            savedCharacters.map((char) => (
+              <li key={char._id} className="bg-slate-700 p-3 rounded">
+                <p className="font-bold text-lg text-sky-400">{char.name}</p>
+                <p className="capitalize text-sm text-slate-300">
+                  {char.race} {char.characterClass}
+                </p>
+              </li>
+            ))
+          ) : (
+            <p className="text-slate-400">No characters saved yet.</p>
+          )}
         </ul>
       </section>
 
@@ -147,7 +181,7 @@ const CharacterCreator = () => {
             placeholder="Enter Character Name"
             value={characterName}
             onChange={(e) => setCharacterName(e.target.value)}
-            className="w-full sm:w-auto flex-grow p-2 rounded bg-slate-700 text-white"
+            className="w-full sm:w-auto flex-grow p-2 rounded bg-slate-700 text-white focus:ring-2 focus:ring-sky-500 outline-none"
           />
           <button
             onClick={handleSaveCharacter}
@@ -157,13 +191,13 @@ const CharacterCreator = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Column 2: Races List */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Races List */}
           <section className="bg-slate-800 p-4 rounded-lg h-fit">
             <h2 className="text-3xl font-semibold mb-4 text-amber-300">
               Races
             </h2>
-            <ul className="space-y-2">
+            <ul className="space-y-2 max-h-96 overflow-y-auto">
               {races.map((race) => (
                 <li
                   key={race.index}
@@ -180,12 +214,12 @@ const CharacterCreator = () => {
             </ul>
           </section>
 
-          {/* Column 3: Classes List */}
+          {/* Classes List */}
           <section className="bg-slate-800 p-4 rounded-lg h-fit">
             <h2 className="text-3xl font-semibold mb-4 text-amber-300">
               Classes
             </h2>
-            <ul className="space-y-2">
+            <ul className="space-y-2 max-h-96 overflow-y-auto">
               {classes.map((c) => (
                 <li
                   key={c.index}
@@ -198,10 +232,47 @@ const CharacterCreator = () => {
                 >
                   {c.name}
                   {recommendedClasses.has(c.index) && (
-                    <span className="text-xs bg-emerald-500 px-2 py-1 rounded-full">
+                    <span className="text-xs bg-emerald-500 px-2 py-1 rounded-full font-semibold">
                       Rec.
                     </span>
                   )}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Ability Scores Section */}
+          <section className="bg-slate-800 p-4 rounded-lg h-fit">
+            <h2 className="text-3xl font-semibold mb-4 text-amber-300">
+              Ability Scores
+            </h2>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button
+                onClick={handleRollStats}
+                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-3 rounded transition-colors"
+              >
+                Roll for Stats
+              </button>
+              <button
+                onClick={handleStandardArray}
+                className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-3 rounded transition-colors cursor-not-allowed"
+                disabled
+              >
+                Use Standard Array
+              </button>
+            </div>
+            <ul className="space-y-2">
+              {ABILITIES.map((ability) => (
+                <li
+                  key={ability}
+                  className="flex justify-between items-center bg-slate-700 p-2 rounded"
+                >
+                  <span className="capitalize font-bold text-slate-300">
+                    {ability}
+                  </span>
+                  <span className="font-mono text-xl text-white bg-slate-900 px-3 py-1 rounded">
+                    {stats[ability]}
+                  </span>
                 </li>
               ))}
             </ul>
