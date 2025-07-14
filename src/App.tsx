@@ -1,10 +1,10 @@
 // src/App.tsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import apiClient from "./services/apiClient";
 import Header from "./components/Header";
 import AuthModal from "./components/AuthModal";
+import CharacterCreator from "./components/CharacterCreator"; // <-- IMPORT
 
-// A simple type for our user state
 interface User {
   _id: string;
   name: string;
@@ -15,50 +15,67 @@ function App() {
   const [userInfo, setUserInfo] = useState<User | null>(null);
   const [authMode, setAuthMode] = useState<"login" | "register" | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // To prevent UI flicker
 
-  // This effect will check if the user is already logged in when the app loads
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
         const { data } = await apiClient.get<User>("/users/profile");
         setUserInfo(data);
       } catch (error) {
-        // This is expected if the user is not logged in, so we don't need to show an error
         setUserInfo(null);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchUserProfile();
   }, []);
 
   const handleAuthSubmit = async (formData: any) => {
-    setAuthError(null); // Reset error on new submission
+    setAuthError(null);
     const url = authMode === "login" ? "/users/login" : "/users/register";
-
     try {
       const { data } = await apiClient.post<User>(url, formData);
       setUserInfo(data);
-      setAuthMode(null); // Close the modal on success
+      setAuthMode(null);
     } catch (err: any) {
-      // Set the error message from the backend response
-      setAuthError(
-        err.response?.data?.message || `An error occurred during ${authMode}.`
-      );
+      setAuthError(err.response?.data?.message || "An error occurred.");
     }
   };
 
-  // A simple welcome message to show we're logged in
-  if (userInfo) {
+  const handleLogout = async () => {
+    try {
+      await apiClient.post("/users/logout");
+      setUserInfo(null);
+    } catch (error) {
+      console.error("Logout failed", error);
+      alert("Could not log out.");
+    }
+  };
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <div className="text-center text-white text-2xl">Loading...</div>;
+    }
+
+    if (userInfo) {
+      return <CharacterCreator />; // <-- RENDER THE CREATOR
+    }
+
     return (
-      <div className="bg-slate-900 min-h-screen p-8 text-white">
-        <h1 className="text-4xl text-center">Welcome, {userInfo.name}!</h1>
+      <div className="text-center mt-20">
+        <h2 className="text-4xl font-bold text-amber-300">Welcome!</h2>
+        <p className="text-xl mt-4 text-slate-300">
+          Please login or register to begin.
+        </p>
       </div>
     );
-  }
+  };
 
-  // If not logged in, show the main page with auth options
   return (
-    <div className="bg-slate-900 min-h-screen p-8 text-white">
+    <div className="bg-slate-900 min-h-screen p-4 sm:p-8 text-white">
       <Header
+        userInfo={userInfo}
         onLoginClick={() => {
           setAuthMode("login");
           setAuthError(null);
@@ -67,6 +84,7 @@ function App() {
           setAuthMode("register");
           setAuthError(null);
         }}
+        onLogoutClick={handleLogout}
       />
 
       {authMode && (
@@ -78,14 +96,7 @@ function App() {
         />
       )}
 
-      <div className="text-center mt-20">
-        <h2 className="text-4xl font-bold text-amber-300">
-          Welcome to the D&D Character Creator
-        </h2>
-        <p className="text-xl mt-4 text-slate-300">
-          Please login or register to begin creating your characters.
-        </p>
-      </div>
+      <main>{renderContent()}</main>
     </div>
   );
 }
