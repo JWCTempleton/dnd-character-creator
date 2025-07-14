@@ -114,6 +114,24 @@ const CharacterCreator = () => {
     // A great place for a future feature!
   };
 
+  const handleDeleteCharacter = async (id: string) => {
+    // Confirmation prompt is a crucial UX feature
+    if (
+      window.confirm(
+        "Are you sure you want to delete this character? This cannot be undone."
+      )
+    ) {
+      try {
+        await apiClient.delete(`/characters/${id}`);
+        // Remove the character from the local state to update the UI instantly
+        setSavedCharacters(savedCharacters.filter((char) => char._id !== id));
+      } catch (error) {
+        console.error("Failed to delete character", error);
+        alert("Could not delete character.");
+      }
+    }
+  };
+
   const handleRollStats = () => {
     const newStats = { ...initialStats };
     ABILITIES.forEach((ability) => {
@@ -161,14 +179,30 @@ const CharacterCreator = () => {
         <ul className="space-y-2">
           {savedCharacters.length > 0 ? (
             savedCharacters.map((char) => (
-              <Link to={`/character/${char._id}`} key={char._id}>
-                <li className="bg-slate-700 p-3 rounded hover:bg-slate-600 transition-colors cursor-pointer">
-                  <p className="font-bold text-lg text-sky-400">{char.name}</p>
-                  <p className="capitalize text-sm text-slate-300">
-                    {char.race} {char.characterClass}
-                  </p>
-                </li>
-              </Link>
+              <div
+                key={char._id}
+                className="bg-slate-700 p-3 rounded flex justify-between items-center"
+              >
+                <Link to={`/character/${char._id}`} className="flex-grow">
+                  <div className="hover:bg-slate-600 rounded -m-3 p-3 transition-colors">
+                    <p className="font-bold text-lg text-sky-400">
+                      {char.name}
+                    </p>
+                    <p className="capitalize text-sm text-slate-300">
+                      {char.race} {char.characterClass}
+                    </p>
+                  </div>
+                </Link>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent navigation when clicking the button
+                    handleDeleteCharacter(char._id);
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded ml-4 transition-colors"
+                >
+                  Del
+                </button>
+              </div>
             ))
           ) : (
             <p className="text-slate-400">No characters saved yet.</p>
