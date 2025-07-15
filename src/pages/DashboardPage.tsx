@@ -1,6 +1,7 @@
 // frontend/src/components/CharacterCreator.tsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import apiClient from "../services/apiClient";
 import {
   fetchRaces,
@@ -118,36 +119,31 @@ const CharacterCreator = () => {
   };
 
   const handleDeleteCharacter = async (id: string) => {
-    // Confirmation prompt is a crucial UX feature
-    if (
-      window.confirm(
-        "Are you sure you want to delete this character? This cannot be undone."
-      )
-    ) {
+    if (window.confirm("Are you sure you want to delete this character?")) {
       try {
         await apiClient.delete(`/characters/${id}`);
-        // Remove the character from the local state to update the UI instantly
         setSavedCharacters(savedCharacters.filter((char) => char._id !== id));
+        toast.success("Character deleted."); // <-- ADD SUCCESS NOTIFICATION
       } catch (error) {
         console.error("Failed to delete character", error);
-        alert("Could not delete character.");
+        toast.error("Could not delete character."); // <-- REPLACE ALERT
       }
     }
   };
 
   const handleStartEdit = async (character: SavedCharacter) => {
-    // 1. Set the editing ID immediately to change the UI state (e.g., the "Update" button text)
+    // Set the editing ID immediately to change the UI state (e.g., the "Update" button text)
     setEditingCharacterId(character._id);
     setCharacterName(character.name);
 
-    // 2. Fetch the full character data from our backend to get the saved stats
+    // Fetch the full character data from our backend to get the saved stats
     try {
       const { data: charDetails } = await apiClient.get(
         `/characters/${character._id}`
       );
       setStats(charDetails.stats);
 
-      // 3. Use the character's race/class index to fetch full details from the D&D API
+      // Use the character's race/class index to fetch full details from the D&D API
       const raceDetailsToEdit = await fetchApiDetails<RaceDetails>(
         `/api/races/${charDetails.race}`
       );
@@ -155,15 +151,15 @@ const CharacterCreator = () => {
         `/api/classes/${charDetails.characterClass}`
       );
 
-      // 4. Set the state for the selected race and class to update the UI
+      // Set the state for the selected race and class to update the UI
       setSelectedRace(raceDetailsToEdit);
       setSelectedClass(classDetailsToEdit);
 
-      // 5. Scroll to the top of the page for a better user experience
+      // Scroll to the top of the page for a better user experience
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       console.error("Failed to fetch character details for editing.", error);
-      alert("Could not load character data to edit.");
+      toast.error("Could not load character data to edit.");
     }
   };
 
@@ -193,7 +189,7 @@ const CharacterCreator = () => {
 
   const handleSaveCharacter = async () => {
     if (!characterName || !selectedRace || !selectedClass) {
-      alert("Please enter a name and select a race and class.");
+      toast.error("Please enter a name and select a race and class.");
       return;
     }
     const payload = {
@@ -204,6 +200,7 @@ const CharacterCreator = () => {
     };
     try {
       let savedCharacter: SavedCharacter;
+      let successMessage: string;
 
       if (editingCharacterId) {
         // UPDATE LOGIC
@@ -217,10 +214,13 @@ const CharacterCreator = () => {
             c._id === editingCharacterId ? savedCharacter : c
           )
         );
+        successMessage = "Character updated successfully!";
       } else {
+        // CREATE LOGIC
         const { data } = await apiClient.post("/characters", payload);
         savedCharacter = data;
         setSavedCharacters([...savedCharacters, savedCharacter]);
+        successMessage = "Character saved successfully!";
       }
 
       // Reset fields for the next character
@@ -229,9 +229,10 @@ const CharacterCreator = () => {
       setStats(initialStats);
       setSelectedRace(null);
       setSelectedClass(null);
+      toast.success(successMessage);
     } catch (error) {
       console.error("Failed to save character", error);
-      alert("Failed to save character.");
+      toast.error("Failed to save character.");
     }
   };
 

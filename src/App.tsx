@@ -4,8 +4,9 @@ import { Routes, Route } from "react-router-dom";
 import apiClient from "./services/apiClient";
 import Header from "./components/Header";
 import AuthModal from "./components/AuthModal";
-import DashboardPage from "./pages/DashboardPage"; // <-- IMPORT PAGE
-import CharacterSheetPage from "./pages/CharacterSheetPage"; // <-- IMPORT PAGE
+import DashboardPage from "./pages/DashboardPage";
+import CharacterSheetPage from "./pages/CharacterSheetPage";
+import { Toaster, toast } from "react-hot-toast";
 
 interface User {
   _id: string;
@@ -40,8 +41,14 @@ function App() {
   };
 
   const handleLogout = async () => {
-    await apiClient.post("/users/logout");
-    setUserInfo(null);
+    try {
+      await apiClient.post("/users/logout");
+      setUserInfo(null);
+      toast.success("Logged out successfully!");
+    } catch (error) {
+      console.error("Logout failed", error);
+      toast.error("Could not log out.");
+    }
   };
 
   const renderLandingPage = () => (
@@ -55,6 +62,18 @@ function App() {
 
   return (
     <div className="bg-slate-900 min-h-screen p-4 sm:p-8 text-white">
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          // Define default options
+          className: "",
+          style: {
+            background: "#334155", // bg-slate-700
+            color: "#fff",
+          },
+        }}
+      />
       <Header
         userInfo={userInfo}
         onLogoutClick={handleLogout}
