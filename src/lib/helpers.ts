@@ -59,3 +59,32 @@ export const CANTRIP_COUNTS: Record<string, number> = {
   wizard: 3,
   // Other classes like Fighter, Rogue, etc., get 0 at level 1.
 };
+
+export function calculateModifier(score: number): string {
+  const modifier = Math.floor((score - 10) / 2);
+  return modifier >= 0 ? `+${modifier}` : `${modifier}`;
+}
+
+export const BACKGROUND_LIST = [
+  { index: "acolyte", name: "Acolyte", url: "/api/backgrounds/acolyte" },
+  { index: "charlatan", name: "Charlatan", url: "/api/backgrounds/charlatan" },
+  { index: "criminal", name: "Criminal", url: "/api/backgrounds/criminal" },
+  {
+    index: "entertainer",
+    name: "Entertainer",
+    url: "/api/backgrounds/entertainer",
+  },
+  { index: "folk-hero", name: "Folk Hero", url: "/api/backgrounds/folk-hero" },
+  {
+    index: "guild-artisan",
+    name: "Guild Artisan",
+    url: "/api/backgrounds/guild-artisan",
+  },
+  { index: "hermit", name: "Hermit", url: "/api/backgrounds/hermit" },
+  { index: "noble", name: "Noble", url: "/api/backgrounds/noble" },
+  { index: "outlander", name: "Outlander", url: "/api/backgrounds/outlander" },
+  { index: "sage", name: "Sage", url: "/api/backgrounds/sage" },
+  { index: "sailor", name: "Sailor", url: "/api/backgrounds/sailor" },
+  { index: "soldier", name: "Soldier", url: "/api/backgrounds/soldier" },
+  { index: "urchin", name: "Urchin", url: "/api/backgrounds/urchin" },
+];

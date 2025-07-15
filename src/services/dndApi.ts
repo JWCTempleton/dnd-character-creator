@@ -1,3 +1,4 @@
+import { BACKGROUND_LIST } from "../lib/helpers";
 const BASE_URL = "https://www.dnd5eapi.co";
 
 // This defines the shape of the objects we expect back from the list endpoints
@@ -8,6 +9,7 @@ export interface ApiListItem {
 }
 
 export interface RaceDetails {
+  index: any;
   name: string;
   speed: number;
   ability_bonuses: {
@@ -22,6 +24,12 @@ export interface ClassDetails {
   name: string;
   hit_die: number;
   proficiencies: ApiListItem[];
+}
+
+export interface LevelData {
+  level: number;
+  features: ApiListItem[];
+  // ... other level-specific data we might use later
 }
 
 // A generic fetch function to get a list of items (like races or classes)
@@ -54,5 +62,26 @@ export async function fetchApiDetails<T>(url: string): Promise<T | null> {
   }
 }
 
+export const fetchClassLevelInfo = async (
+  classIndex: string
+): Promise<LevelData[]> => {
+  try {
+    const response = await fetch(
+      `${BASE_URL}/api/classes/${classIndex}/levels`
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch level data for ${classIndex}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+};
+
 export const fetchRaces = () => fetchApiList("races");
 export const fetchClasses = () => fetchApiList("classes");
+export const fetchBackgrounds = (): Promise<ApiListItem[]> => {
+  return Promise.resolve(BACKGROUND_LIST);
+};
+export const fetchAlignments = () => fetchApiList("alignments");
