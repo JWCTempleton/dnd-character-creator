@@ -49,3 +49,13 @@ export function rollForStat(): number {
   // Sum the remaining 3 dice
   return rolls.reduce((sum, current) => sum + current, 0);
 }
+
+export const CANTRIP_COUNTS: Record<string, number> = {
+  bard: 2,
+  cleric: 3,
+  druid: 2,
+  sorcerer: 4,
+  warlock: 2,
+  wizard: 3,
+  // Other classes like Fighter, Rogue, etc., get 0 at level 1.
+};

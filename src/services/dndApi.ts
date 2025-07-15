@@ -18,6 +18,7 @@ export interface RaceDetails {
 }
 
 export interface ClassDetails {
+  index: string;
   name: string;
   hit_die: number;
   proficiencies: ApiListItem[];

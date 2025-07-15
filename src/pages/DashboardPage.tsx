@@ -15,6 +15,7 @@ import {
   CLASS_PRIMARY_STATS,
   ABILITY_SCORE_MAP,
   ABILITIES,
+  CANTRIP_COUNTS,
   type Ability,
   rollForStat,
 } from "../lib/helpers";
@@ -50,6 +51,14 @@ const CharacterCreator = () => {
   const [stats, setStats] = useState<Record<Ability, number>>(initialStats);
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(
     null
+  );
+  const [proficiencyChoices, setProficiencyChoices] = useState<any[]>([]);
+  const [selectedProficiencies, setSelectedProficiencies] = useState<
+    Set<string>
+  >(new Set());
+  const [cantrips, setCantrips] = useState<ApiListItem[]>([]);
+  const [selectedCantrips, setSelectedCantrips] = useState<Set<string>>(
+    new Set()
   );
 
   // --- Data Loading Effect ---
@@ -109,8 +118,41 @@ const CharacterCreator = () => {
   };
 
   const handleSelectClass = async (classItem: ApiListItem) => {
-    const details = await fetchApiDetails<ClassDetails>(classItem.url);
-    setSelectedClass(details);
+    setSelectedProficiencies(new Set());
+    setSelectedCantrips(new Set());
+    setCantrips([]);
+    setProficiencyChoices([]);
+
+    try {
+      // Fetch the full class details just once
+      const fullClassDetails = await fetchApiDetails<any>(classItem.url);
+
+      if (!fullClassDetails) throw new Error("Class details not found");
+
+      setSelectedClass(fullClassDetails);
+      setProficiencyChoices(fullClassDetails.proficiency_choices || []);
+
+      // Now, fetch the spell list using the index from the details we just got
+      const spellListData = await fetchApiDetails<{ results: ApiListItem[] }>(
+        `/api/classes/${fullClassDetails.index}/spells`
+      );
+
+      if (spellListData && spellListData.results.length > 0) {
+        const spellDetailPromises = spellListData.results.map((spell) =>
+          fetchApiDetails<any>(spell.url)
+        );
+        const allSpellDetails = await Promise.all(spellDetailPromises);
+        const levelZeroSpells = allSpellDetails.filter(
+          (spell) => spell && spell.level === 0
+        );
+        setCantrips(levelZeroSpells);
+      } else {
+        setCantrips([]);
+      }
+    } catch (error) {
+      toast.error("Could not fetch class details.");
+      console.error("Failed to fetch class details:", error);
+    }
   };
 
   const handleStandardArray = () => {
@@ -177,6 +219,10 @@ const CharacterCreator = () => {
       wisdom: 10,
       charisma: 10,
     });
+    setProficiencyChoices([]);
+    setSelectedProficiencies(new Set());
+    setCantrips([]);
+    setSelectedCantrips(new Set());
   };
 
   const handleRollStats = () => {
@@ -196,7 +242,9 @@ const CharacterCreator = () => {
       name: characterName,
       race: selectedRace.name.toLowerCase(),
       characterClass: selectedClass.name.toLowerCase(),
-      stats: stats, // Add stats to the save payload
+      stats: stats,
+      proficiencies: Array.from(selectedProficiencies),
+      spells: Array.from(selectedCantrips),
     };
     try {
       let savedCharacter: SavedCharacter;
@@ -398,6 +446,105 @@ const CharacterCreator = () => {
               ))}
             </ul>
           </section>
+          {/* --- Proficiency Choices Section (Conditionally Rendered) --- */}
+          {selectedClass && proficiencyChoices.length > 0 && (
+            <section className="bg-slate-800 p-4 rounded-lg h-fit md:col-span-2">
+              {" "}
+              {/* <-- SPANS 2 COLUMNS */}
+              <h2 className="text-3xl font-semibold mb-4 text-amber-300">
+                Skill Choices
+              </h2>
+              {proficiencyChoices.map((choice, index) => (
+                <div key={index} className="mb-4">
+                  <p className="text-slate-300 mb-2">{choice.desc}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {choice.from.options.map((option: any) => (
+                      <label
+                        key={option.item.index}
+                        className="flex items-center space-x-2 bg-slate-700 p-2 rounded"
+                      >
+                        <input
+                          type="checkbox"
+                          className="form-checkbox bg-slate-600 text-sky-500"
+                          checked={selectedProficiencies.has(option.item.index)}
+                          onChange={() => {
+                            const newProficiencies = new Set(
+                              selectedProficiencies
+                            );
+                            if (newProficiencies.has(option.item.index)) {
+                              newProficiencies.delete(option.item.index);
+                            } else {
+                              if (newProficiencies.size >= choice.choose) {
+                                toast.error(
+                                  `You can only choose ${choice.choose} skill(s)`
+                                );
+                                return;
+                              }
+                              newProficiencies.add(option.item.index);
+                            }
+                            setSelectedProficiencies(newProficiencies);
+                          }}
+                        />
+                        <span>{option.item.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
+
+          {/* --- Cantrip Choices Section (Conditionally Rendered) --- */}
+          {selectedClass && cantrips.length > 0 && (
+            <section className="bg-slate-800 p-4 rounded-lg h-fit md:col-span-1">
+              <h2 className="text-3xl font-semibold mb-4 text-amber-300">
+                Cantrips
+              </h2>
+
+              {/* NEW: Display how many cantrips can be chosen */}
+              <p className="text-slate-300 mb-2">
+                Choose {CANTRIP_COUNTS[selectedClass.index ?? ""] || 0}:
+              </p>
+
+              <div className="grid grid-cols-2 gap-2">
+                {cantrips.map((cantrip) => {
+                  // Determine the maximum number of cantrips for the selected class
+                  const maxCantrips =
+                    CANTRIP_COUNTS[selectedClass.index ?? ""] || 0;
+
+                  return (
+                    <label
+                      key={cantrip.index}
+                      className="flex items-center space-x-2 bg-slate-700 p-2 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        className="form-checkbox bg-slate-600 text-sky-500"
+                        checked={selectedCantrips.has(cantrip.index)}
+                        onChange={() => {
+                          const newCantrips = new Set(selectedCantrips);
+                          if (newCantrips.has(cantrip.index)) {
+                            newCantrips.delete(cantrip.index);
+                          } else {
+                            // Enforce the selection limit
+                            if (newCantrips.size >= maxCantrips) {
+                              toast.error(
+                                `You can only choose ${maxCantrips} cantrip(s)`
+                              );
+                              return;
+                            }
+                            newCantrips.add(cantrip.index);
+                          }
+                          setSelectedCantrips(newCantrips);
+                        }}
+                      />
+                      <span>{cantrip.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </div>
