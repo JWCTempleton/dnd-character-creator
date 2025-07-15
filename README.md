@@ -49,9 +49,10 @@ Styling is handled exclusively with Tailwind CSS. This utility-first approach al
 ### 3. User Experience (UX) Enhancements
 
 Significant effort was put into polishing the user experience:
-
-- **Client-Side Validation:** The login/registration forms use `react-hook-form` and `Zod` to provide instant, inline validation feedback, preventing bad data from being sent to the server.
 - **Toast Notifications:** All `alert()` popups have been replaced with `react-hot-toast` notifications for a non-blocking and professional user feedback system.
+
+## Upcoming changes
+- **Client-Side Validation:** The login/registration forms use `react-hook-form` and `Zod` to provide instant, inline validation feedback, preventing bad data from being sent to the server.
 - **Skeleton Loading States:** When data is being fetched, the UI displays skeleton placeholders that mimic the final layout, which improves perceived performance.
 
 ## Getting Started (Local Development)
