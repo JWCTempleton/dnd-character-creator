@@ -135,27 +135,52 @@ const CharacterCreator = () => {
     }
   };
 
-  const handleStartEdit = (character: SavedCharacter) => {
-    // Find the full character data from the saved list
-    const fullCharacter = savedCharacters.find((c) => c._id === character._id);
-    if (!fullCharacter) return;
+  const handleStartEdit = async (character: SavedCharacter) => {
+    // 1. Set the editing ID immediately to change the UI state (e.g., the "Update" button text)
+    setEditingCharacterId(character._id);
+    setCharacterName(character.name);
 
-    // Find the detailed Race/Class objects to populate selections
-    const raceToEdit = races.find(
-      (r) => r.name.toLowerCase() === fullCharacter.race
-    );
-    const classToEdit = classes.find(
-      (c) => c.name.toLowerCase() === fullCharacter.characterClass
-    );
+    // 2. Fetch the full character data from our backend to get the saved stats
+    try {
+      const { data: charDetails } = await apiClient.get(
+        `/characters/${character._id}`
+      );
+      setStats(charDetails.stats);
 
-    setEditingCharacterId(fullCharacter._id);
-    setCharacterName(fullCharacter.name);
+      // 3. Use the character's race/class index to fetch full details from the D&D API
+      const raceDetailsToEdit = await fetchApiDetails<RaceDetails>(
+        `/api/races/${charDetails.race}`
+      );
+      const classDetailsToEdit = await fetchApiDetails<ClassDetails>(
+        `/api/classes/${charDetails.characterClass}`
+      );
 
-    // A full implementation would also populate stats and selections
-    // For now, we focus on the name and ID.
-    alert(
-      `Editing ${fullCharacter.name}. Details like race/class/stats selection would be pre-filled here.`
-    );
+      // 4. Set the state for the selected race and class to update the UI
+      setSelectedRace(raceDetailsToEdit);
+      setSelectedClass(classDetailsToEdit);
+
+      // 5. Scroll to the top of the page for a better user experience
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      console.error("Failed to fetch character details for editing.", error);
+      alert("Could not load character data to edit.");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCharacterId(null);
+    setCharacterName("");
+    setSelectedRace(null);
+    setSelectedClass(null);
+    setStats({
+      // Reset stats to the default initial state
+      strength: 10,
+      dexterity: 10,
+      constitution: 10,
+      intelligence: 10,
+      wisdom: 10,
+      charisma: 10,
+    });
   };
 
   const handleRollStats = () => {
@@ -276,6 +301,14 @@ const CharacterCreator = () => {
           >
             {editingCharacterId ? "Update Character" : "Save Character"}
           </button>
+          {editingCharacterId && (
+            <button
+              onClick={handleCancelEdit}
+              className="w-full sm:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
+              Cancel Edit
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
