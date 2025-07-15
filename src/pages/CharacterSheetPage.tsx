@@ -8,7 +8,6 @@ import {
   type ClassDetails,
   type ApiListItem,
   fetchClassLevelInfo,
-  type LevelData,
 } from "../services/dndApi";
 import LevelUpModal from "../components/LevelUpModal";
 import { type Ability, ABILITIES, calculateModifier } from "../lib/helpers";
