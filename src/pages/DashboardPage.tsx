@@ -47,6 +47,9 @@ const CharacterCreator = () => {
   const [characterName, setCharacterName] = useState("");
   const [savedCharacters, setSavedCharacters] = useState<SavedCharacter[]>([]);
   const [stats, setStats] = useState<Record<Ability, number>>(initialStats);
+  const [editingCharacterId, setEditingCharacterId] = useState<string | null>(
+    null
+  );
 
   // --- Data Loading Effect ---
   useEffect(() => {
@@ -132,6 +135,29 @@ const CharacterCreator = () => {
     }
   };
 
+  const handleStartEdit = (character: SavedCharacter) => {
+    // Find the full character data from the saved list
+    const fullCharacter = savedCharacters.find((c) => c._id === character._id);
+    if (!fullCharacter) return;
+
+    // Find the detailed Race/Class objects to populate selections
+    const raceToEdit = races.find(
+      (r) => r.name.toLowerCase() === fullCharacter.race
+    );
+    const classToEdit = classes.find(
+      (c) => c.name.toLowerCase() === fullCharacter.characterClass
+    );
+
+    setEditingCharacterId(fullCharacter._id);
+    setCharacterName(fullCharacter.name);
+
+    // A full implementation would also populate stats and selections
+    // For now, we focus on the name and ID.
+    alert(
+      `Editing ${fullCharacter.name}. Details like race/class/stats selection would be pre-filled here.`
+    );
+  };
+
   const handleRollStats = () => {
     const newStats = { ...initialStats };
     ABILITIES.forEach((ability) => {
@@ -145,20 +171,35 @@ const CharacterCreator = () => {
       alert("Please enter a name and select a race and class.");
       return;
     }
+    const payload = {
+      name: characterName,
+      race: selectedRace.name.toLowerCase(),
+      characterClass: selectedClass.name.toLowerCase(),
+      stats: stats, // Add stats to the save payload
+    };
     try {
-      const payload = {
-        name: characterName,
-        race: selectedRace.name.toLowerCase(),
-        characterClass: selectedClass.name.toLowerCase(),
-        stats: stats, // Add stats to the save payload
-      };
-      const { data: newCharacter } = await apiClient.post<SavedCharacter>(
-        "/characters",
-        payload
-      );
-      setSavedCharacters([...savedCharacters, newCharacter]);
+      let savedCharacter: SavedCharacter;
+
+      if (editingCharacterId) {
+        // UPDATE LOGIC
+        const { data } = await apiClient.put(
+          `/characters/${editingCharacterId}`,
+          payload
+        );
+        savedCharacter = data;
+        setSavedCharacters(
+          savedCharacters.map((c) =>
+            c._id === editingCharacterId ? savedCharacter : c
+          )
+        );
+      } else {
+        const { data } = await apiClient.post("/characters", payload);
+        savedCharacter = data;
+        setSavedCharacters([...savedCharacters, savedCharacter]);
+      }
 
       // Reset fields for the next character
+      setEditingCharacterId(null);
       setCharacterName("");
       setStats(initialStats);
       setSelectedRace(null);
@@ -202,6 +243,15 @@ const CharacterCreator = () => {
                 >
                   Del
                 </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartEdit(char);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded ml-4 transition-colors"
+                >
+                  Edit
+                </button>
               </div>
             ))
           ) : (
@@ -224,7 +274,7 @@ const CharacterCreator = () => {
             onClick={handleSaveCharacter}
             className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded transition-colors"
           >
-            Save Character
+            {editingCharacterId ? "Update Character" : "Save Character"}
           </button>
         </div>
 
